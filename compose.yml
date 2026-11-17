@@ -1,0 +1,33 @@
+services:
+  db:
+    image: mysql:8.4.11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${PS_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${PS_DB_NAME}
+      MYSQL_USER: ${PS_DB_USER}
+      MYSQL_PASSWORD: ${PS_DB_PASSWORD}
+    volumes:
+      - prestashop-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h 127.0.0.1 -uroot --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    volumes:
+      - prestashop-files:/var/www/html/prestashop
+
+volumes:
+  prestashop-db-data:
+  prestashop-files:

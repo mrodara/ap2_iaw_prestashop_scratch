@@ -1,0 +1,685 @@
+/**
+ * For the full copyright and license information, please view the
+ * docs/licenses/LICENSE.txt file that was distributed with this source code.
+ */
+
+// build confirmation modal
+// eslint-disable-next-line
+function confirm_modal(
+  heading,
+  question,
+  leftButtonText,
+  rightButtonText,
+  leftButtonCallback,
+  rightButtonCallback,
+) {
+  const confirmModal = $(
+    `${'<div class="bootstrap modal hide fade">'
+      + '<div class="modal-dialog">'
+      + '<div class="modal-content">'
+      + '<div class="modal-header">'
+      + '<a class="close" data-dismiss="modal" >&times;</a>'
+      + '<h3>'}${heading}</h3>`
+      + '</div>'
+      + '<div class="modal-body">'
+      + `<p>${question}</p>`
+      + '</div>'
+      + '<div class="modal-footer">'
+      + `<a href="#" id="confirm-modal-left-button" class="btn btn-primary">${leftButtonText}</a>`
+      + `<a href="#" id="confirm-modal-right-button" class="btn btn-primary">${rightButtonText}</a>`
+      + '</div>'
+      + '</div>'
+      + '</div>'
+      + '</div>',
+  );
+  confirmModal.find('#confirm-modal-left-button').on('click', () => {
+    leftButtonCallback();
+    confirmModal.modal('hide');
+  });
+  confirmModal.find('#confirm-modal-right-button').on('click', () => {
+    rightButtonCallback();
+    confirmModal.modal('hide');
+  });
+  confirmModal.modal('show');
+}
+
+// build error modal
+/* global errorContinueMsg */
+// eslint-disable-next-line
+function error_modal(heading, msg) {
+  const errorModal = $(
+    `${'<div class="bootstrap modal hide fade">'
+      + '<div class="modal-dialog">'
+      + '<div class="modal-content">'
+      + '<div class="modal-header">'
+      + '<a class="close" data-dismiss="modal" >&times;</a>'
+      + '<h4>'}${heading}</h4>`
+      + '</div>'
+      + '<div class="modal-body">'
+      + `<p>${msg}</p>`
+      + '</div>'
+      + '<div class="modal-footer">'
+      + `<a href="#" id="error_modal_right_button" class="btn btn-default">${errorContinueMsg}</a>`
+      + '</div>'
+      + '</div>'
+      + '</div>'
+      + '</div>',
+  );
+  errorModal.find('#error_modal_right_button').on('click', () => {
+    errorModal.modal('hide');
+  });
+  errorModal.modal('show');
+}
+
+// move to hash after clicking on anchored links
+// eslint-disable-next-line
+function scroll_if_anchor(href) {
+  // eslint-disable-next-line
+  href = typeof href === 'string' ? href : $(this).attr('href');
+  const fromTop = 120;
+
+  if (href.indexOf('#') === 0) {
+    const $target = $(href);
+
+    if ($target.length) {
+      $('html, body').animate({scrollTop: $target.offset().top - fromTop});
+      if (history && 'pushState' in history) {
+        history.pushState({}, document.title, window.location.href + href);
+        return false;
+      }
+    }
+  }
+}
+$(() => {
+  const $mainMenu = $('.main-menu');
+  const $navBar = $('.nav-bar');
+  const $body = $('body');
+
+  const NavBarTransitions = new NavbarTransitionHandler(
+    $navBar,
+    $mainMenu,
+    getAnimationEvent('transition', 'end'),
+    $body,
+  );
+
+  $('.nav-bar-overflow').on('scroll', () => {
+    const $menuItems = $('.main-menu .link-levelone.has_submenu.ul-open');
+
+    $($menuItems).each((i, e) => {
+      const itemOffsetTop = $(e).position().top;
+      $(e)
+        .find('ul.submenu')
+        .css('top', itemOffsetTop);
+    });
+  });
+
+  $('.nav-bar')
+    .find('.link-levelone')
+    .on(
+      'mouseenter',
+      function () {
+        $(this).addClass('-hover');
+      },
+    ).on(
+      'mouseleave',
+      function () {
+        $(this).removeClass('-hover');
+      },
+    );
+
+  $('.nav-bar li.link-levelone.has_submenu > a').off('click').on('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    NavBarTransitions.toggle();
+
+    const $submenu = $(this).parent();
+    $('.nav-bar li.link-levelone.has_submenu a > i.material-icons.sub-tabs-arrow').text('keyboard_arrow_down');
+    const onlyClose = $(e.currentTarget)
+      .parent()
+      .hasClass('ul-open');
+
+    if ($('body').is('.page-sidebar-closed:not(.mobile)')) {
+      $('.nav-bar li.link-levelone.has_submenu.ul-open').removeClass('ul-open open -hover');
+      $('.nav-bar li.link-levelone.has_submenu.ul-open ul.submenu').removeAttr('style');
+    } else {
+      $('.nav-bar li.link-levelone.has_submenu.ul-open ul.submenu').slideUp({
+        complete() {
+          $(this)
+            .parent()
+            .removeClass('ul-open open');
+          $(this).removeAttr('style');
+        },
+      });
+    }
+
+    if (onlyClose) {
+      return;
+    }
+    $submenu.addClass('ul-open');
+
+    if ($('body').is('.page-sidebar-closed:not(.mobile)')) {
+      $submenu.addClass('-hover');
+      $submenu.find('ul.submenu').removeAttr('style');
+    } else {
+      $submenu.find('ul.submenu').slideDown({
+        complete() {
+          $submenu.addClass('open');
+          $(this).removeAttr('style');
+        },
+      });
+    }
+    $submenu.find('i.material-icons.sub-tabs-arrow').text('keyboard_arrow_up');
+
+    const itemOffsetTop = $submenu.position().top;
+    $submenu.find('.submenu').css('top', itemOffsetTop);
+  });
+
+  $('.nav-bar').off('click', '.menu-collapse').on('click', '.menu-collapse', function () {
+    $('body').toggleClass('page-sidebar-closed');
+    $('.main-menu').toggleClass('sidebar-closed');
+
+    if ($('body').hasClass('page-sidebar-closed')) {
+      $('nav.nav-bar ul.main-menu > li')
+        .removeClass('ul-open open')
+        .find('a > i.material-icons.sub-tabs-arrow')
+        .text('keyboard_arrow_down');
+      addMobileBodyClickListener();
+    } else {
+      $('nav.nav-bar ul.main-menu > li.-active')
+        .addClass('ul-open open')
+        .find('a > i.material-icons.sub-tabs-arrow')
+        .text('keyboard_arrow_up');
+      $('body').off('click.mobile');
+    }
+
+    $.ajax({
+      url: $(this).data('toggle-url'),
+      type: 'post',
+      cache: false,
+      data: {
+        shouldCollapse: Number($('body').hasClass('page-sidebar-closed')),
+      },
+    });
+  });
+  const doQuickLinkAjax = ($link, method, name, newWindow, callbacks = {}) => {
+    const reportErrors = (messages) => {
+      if (callbacks.onError) {
+        callbacks.onError(messages);
+        return;
+      }
+
+      messages.forEach((message) => {
+        $.growl.error({title: '', message});
+      });
+    };
+
+    $.ajax({
+      type: 'POST',
+      headers: {'cache-control': 'no-cache'},
+      async: true,
+      url: $link.data('post-link'),
+      data: {
+        method,
+        url: $link.data('url'),
+        name,
+        icon: $link.data('icon'),
+        id_quick_access: $link.data('quicklink-id'),
+        new_window: newWindow ? 1 : 0,
+      },
+      dataType: 'json',
+      success: (data) => {
+        if (typeof data.has_errors !== 'undefined' && data.has_errors) {
+          const messages = [];
+          $.each(data, (index) => {
+            if (typeof data[index] === 'string') {
+              messages.push(data[index]);
+            }
+          });
+          reportErrors(messages);
+        } else if (Array.isArray(data)) {
+          let quicklinkList = '';
+          $.each(data, (index, item) => {
+            if (typeof item.name !== 'undefined') {
+              const activeClass = item.active ? ' active' : '';
+              const classAttr = item.class ? ` class="${item.class}"` : '';
+              quicklinkList += `<li class="quick-row-link${activeClass}">`
+                + `<a${classAttr} href="${item.link}" data-item="${item.name}">${item.name}</a></li>`;
+            }
+          });
+          if (quicklinkList) {
+            $('#header_quick ul.dropdown-menu .divider').prevAll().remove();
+            $('#header_quick ul.dropdown-menu').prepend(quicklinkList);
+            $link.closest('li').remove();
+            if (callbacks.onSuccess) {
+              callbacks.onSuccess();
+            }
+            window.showSuccessMessage(window.update_success_msg);
+          }
+        }
+      },
+      error: (xhr, textStatus) => {
+        const message = textStatus === 'parsererror'
+          ? `Server returned non-JSON (status ${xhr.status})`
+          : `${xhr.status} ${xhr.statusText}`;
+
+        if (callbacks.onError) {
+          callbacks.onError([message]);
+          return;
+        }
+
+        $.growl.error({title: 'Quick access error', message});
+      },
+    });
+  };
+
+  $(document).on('click', '.js-quick-link', (e) => {
+    e.preventDefault();
+
+    const $link = $(e.target).closest('.js-quick-link');
+    const method = $link.data('method');
+
+    if (method === 'remove') {
+      doQuickLinkAjax($link, method, null, false);
+      return;
+    }
+
+    if (method === 'add') {
+      const $modal = $('#quick-access-add-modal');
+      document.body.appendChild($modal[0]);
+      const defaultName = ($link.data('link') || '').substring(0, 32);
+
+      $modal.find('#quick-access-name').val(defaultName);
+      $modal.find('input[name="quick_access_new_window"][value="0"]').prop('checked', true);
+
+      $modal.one('shown.bs.modal', () => {
+        $modal.find('#quick-access-name').trigger('focus');
+      });
+
+      $modal.find('#quick-access-name').off('keypress').on('keypress', (keyEvent) => {
+        if (keyEvent.key === 'Enter') {
+          $modal.find('#quick-access-save-btn').trigger('click');
+        }
+      });
+
+      const $nameInput = $modal.find('#quick-access-name');
+      const $nameGroup = $modal.find('#quick-access-name-group');
+      const $nameError = $modal.find('#quick-access-name-error');
+      const $modalError = $modal.find('#quick-access-add-error');
+
+      const resetErrors = () => {
+        $nameGroup.removeClass('has-error');
+        $nameError.addClass('hidden').find('.js-error-text').text('');
+        $modalError.removeClass('alert alert-danger').addClass('hidden').find('.alert-text').text('');
+      };
+
+      $modal.one('hidden.bs.modal', resetErrors);
+      $nameInput.off('input').on('input', resetErrors);
+
+      // Only dismiss on backdrop click when the press also started on the backdrop.
+      // Without this, a mousedown inside the modal released outside (e.g. text selection)
+      // bubbles a click whose target is the modal itself, which Bootstrap 3.1 treats as a
+      // backdrop click and closes the modal. These guards run before Bootstrap's own
+      // click.dismiss handler (bound during .modal('show') below) so they can stop it.
+      let mouseDownOnBackdrop = false;
+      $modal.off('mousedown.qaBackdrop').on('mousedown.qaBackdrop', (downEvent) => {
+        mouseDownOnBackdrop = downEvent.target === downEvent.currentTarget;
+      });
+      $modal.off('click.qaBackdrop').on('click.qaBackdrop', (clickEvent) => {
+        if (clickEvent.target === clickEvent.currentTarget && !mouseDownOnBackdrop) {
+          clickEvent.stopImmediatePropagation();
+        }
+      });
+
+      $modal.find('#quick-access-save-btn').off('click').on('click', () => {
+        resetErrors();
+
+        const name = String($nameInput.val()).trim();
+
+        if (!name) {
+          $nameGroup.addClass('has-error');
+          $nameError.removeClass('hidden').find('.js-error-text').text($nameInput.data('required-message'));
+          $nameInput.trigger('focus');
+          return;
+        }
+
+        const newWindow = $modal.find('input[name="quick_access_new_window"]:checked').val() === '1';
+        doQuickLinkAjax($link, method, name, newWindow, {
+          onSuccess: () => $modal.modal('hide'),
+          onError: (messages) => {
+            $modalError.addClass('alert alert-danger').removeClass('hidden')
+              .find('.alert-text').text(messages.join(' '));
+          },
+        });
+      });
+
+      $modal.modal('show');
+    }
+  });
+
+  addMobileBodyClickListener();
+  const MAX_MOBILE_WIDTH = 1023;
+
+  if ($(window).width() <= MAX_MOBILE_WIDTH) {
+    mobileNav();
+  }
+
+  $(window).on('resize', () => {
+    if ($('body').hasClass('mobile') && $(window).width() > MAX_MOBILE_WIDTH) {
+      unbuildMobileMenu();
+    } else if (!$('body').hasClass('mobile') && $(window).width() <= MAX_MOBILE_WIDTH) {
+      mobileNav();
+      $('nav.nav-bar ul.main-menu').removeClass('sidebar-closed');
+    }
+  });
+
+  function addMobileBodyClickListener() {
+    if (!$('body').is('.page-sidebar-closed:not(.mobile)')) {
+      return;
+    }
+    // To close submenu on mobile devices
+    $('body').on('click.mobile', () => {
+      if ($('ul.main-menu li.ul-open').length > 0) {
+        $('.nav-bar li.link-levelone.has_submenu.ul-open').removeClass('ul-open open -hover');
+        $('.nav-bar li.link-levelone.has_submenu.ul-open ul.submenu').removeAttr('style');
+      }
+    });
+  }
+
+  function mobileNav() {
+    const $logout = $('#header_logout')
+      .addClass('link')
+      .removeClass('m-t-1')
+      .prop('outerHTML');
+    let $employee = $('.employee_avatar');
+
+    // Legacy
+    if ($('#employee_links').length > 0) {
+      $employee = $('<a class="employee_avatar">').attr('href', $('#employee_infos > a.employee_name').attr('href'));
+      $employee.append($('#employee_links .employee_avatar').clone());
+      $employee.append($('<span></span>').append($('#employee_links > .username').text()));
+    }
+    const profileLink = $('.profile-link').attr('href');
+
+    $('.nav-bar li.link-levelone.has_submenu:not(.open) a > i.material-icons.sub-tabs-arrow').text(
+      'keyboard_arrow_down',
+    );
+    $('body').addClass('mobile');
+    $('.nav-bar')
+      .addClass('mobile-nav')
+      .attr('style', 'margin-left: -100%;');
+    $('.panel-collapse').addClass('collapse');
+    $('.link-levelone a').each((index, el) => {
+      const id = $(el)
+        .parent()
+        .find('.collapse')
+        .attr('id');
+
+      if (id) {
+        $(el)
+          .attr('href', `#${id}`)
+          .attr('data-toggle', 'collapse');
+      }
+    });
+    $('.main-menu').append(`<li class="link-levelone" data-submenu="">${$logout}</li>`);
+    $('.main-menu').prepend(`<li class="link-levelone">${$employee.prop('outerHTML')}</li>`);
+    $('.collapse').collapse({
+      toggle: false,
+    });
+    if ($('#employee_links').length === 0) {
+      $('.employee_avatar .material-icons, .employee_avatar span').wrap(`<a href="${profileLink}"></a>`);
+    }
+    $('.js-mobile-menu').on('click', expand);
+    $('.js-notifs_dropdown').css({
+      height: window.innerHeight,
+    });
+
+    function expand() {
+      if ($('div.notification-center.dropdown').hasClass('open')) {
+        return;
+      }
+
+      if ($('.mobile-nav').hasClass('expanded')) {
+        $('.mobile-nav').animate(
+          {'margin-left': '-100%'},
+          {
+            complete() {
+              $('.nav-bar, .mobile-layer').removeClass('expanded');
+              $('.nav-bar, .mobile-layer').addClass('d-none');
+            },
+          },
+        );
+        $('.mobile-layer').off();
+      } else {
+        $('.nav-bar, .mobile-layer').addClass('expanded');
+        $('.nav-bar, .mobile-layer').removeClass('d-none');
+        $('.mobile-layer').on('click', expand);
+        $('.mobile-nav').animate({'margin-left': 0});
+      }
+    }
+  }
+
+  function unbuildMobileMenu() {
+    $('body').removeClass('mobile');
+    $('body.page-sidebar-closed .nav-bar .link-levelone.open').removeClass('ul-open open');
+    $('.main-menu li:first, .main-menu li:last').remove();
+    $('.js-notifs_dropdown').removeAttr('style');
+    $('.nav-bar')
+      .removeClass('mobile-nav expanded')
+      .addClass('d-none')
+      .css('margin-left', 0);
+    $('.js-mobile-menu').off();
+    $('.panel-collapse')
+      .removeClass('collapse')
+      .addClass('submenu');
+    $('.shop-list-title').remove();
+    $('.mobile-layer')
+      .addClass('d-none')
+      .removeClass('expanded');
+  }
+
+  // scroll top
+  function animateGoTop() {
+    if ($(window).scrollTop()) {
+      $('#go-top:hidden')
+        .stop(true, true)
+        .fadeIn();
+      $('#go-top:hidden').removeClass('hide');
+    } else {
+      $('#go-top')
+        .stop(true, true)
+        .fadeOut();
+    }
+  }
+
+  // media queries - depends of enquire.js
+  /* global enquire */
+  enquire.register('screen and (max-width: 1200px)', {
+    match() {
+      if ($('#main').hasClass('helpOpen')) {
+        $('.toolbarBox a.btn-help').trigger('click');
+      }
+    },
+    unmatch() {},
+  });
+
+  // bootstrap components init
+  $('.dropdown-toggle').dropdown();
+  $('.label-tooltip, .help-tooltip').tooltip();
+  $('#error-modal').modal('show');
+
+  // go on top of the page
+  $('#go-top').on('click', () => {
+    $('html, body').animate({scrollTop: 0}, 'slow');
+    return false;
+  });
+
+  let timer;
+  $(window).on('scroll', () => {
+    if (timer) {
+      window.clearTimeout(timer);
+    }
+    timer = window.setTimeout(() => {
+      animateGoTop();
+    }, 100);
+  });
+
+  // search with nav sidebar closed
+  $(document).on('click', '.page-sidebar-closed .searchtab', function () {
+    $(this).addClass('search-expanded');
+    $(this)
+      .find('#bo_query')
+      .focus();
+  });
+
+  $('.page-sidebar-closed').on('click', () => {
+    $('.searchtab').removeClass('search-expanded');
+  });
+
+  $('#header_search button').on('click', (e) => {
+    e.stopPropagation();
+  });
+
+  // erase button search input
+  if ($('#bo_query').val() !== '') {
+    $('.clear_search').removeClass('hide');
+  }
+
+  $('.clear_search').on('click', function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+    const id = $(this)
+      .closest('form')
+      .attr('id');
+    $(`#${id} #bo_query`)
+      .val('')
+      .focus();
+    $(`#${id} .clear_search`).addClass('hide');
+  });
+  $('#bo_query').on('keydown', () => {
+    if ($('#bo_query').val() !== '') {
+      $('.clear_search').removeClass('hide');
+    }
+  });
+
+  // search with nav sidebar opened
+  $('.page-sidebar').on('click', () => {
+    $('#header_search .form-group').removeClass('focus-search');
+  });
+
+  // eslint-disable-next-line
+  $('#header_search #bo_query').on('click', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if ($('body').hasClass('mobile-nav')) {
+      return false;
+    }
+    $('#header_search .form-group').addClass('focus-search');
+  });
+
+  // select list for search type
+  $('#header_search_options').on('click', 'li a', function (e) {
+    e.preventDefault();
+    $('#header_search_options .search-option').removeClass('active');
+    $(this)
+      .closest('li')
+      .addClass('active');
+    $('#bo_search_type').val($(this).data('value'));
+    $('#search_type_icon').text($(this).find('.material-icons').text());
+    $('#bo_query').attr('placeholder', $(this).data('placeholder'));
+    $('#bo_query').focus();
+  });
+
+  // scroll_if_anchor(window.location.hash);
+  $('body').on('click', 'a.anchor', scroll_if_anchor);
+
+  // manage curency status switcher
+  $('#currencyStatus input').on('change', function () {
+    const parentZone = $(this)
+      .parent()
+      .parent()
+      .parent()
+      .parent();
+    parentZone.find('.status').addClass('hide');
+
+    if ($(this).attr('checked') === 'checked') {
+      parentZone.find('.enabled').removeClass('hide');
+      $('#currency_form #active').val(1);
+    } else {
+      parentZone.find('.disabled').removeClass('hide');
+      $('#currency_form #active').val(0);
+    }
+  });
+
+  $('#currencyCronjobLiveExchangeRate input').on('change', function () {
+    let enable = 0;
+    const parentZone = $(this)
+      .parent()
+      .parent()
+      .parent()
+      .parent();
+    parentZone.find('.status').addClass('hide');
+
+    if ($(this).attr('checked') === 'checked') {
+      enable = 1;
+      parentZone.find('.enabled').removeClass('hide');
+    } else {
+      enable = 0;
+      parentZone.find('.disabled').removeClass('hide');
+    }
+
+    $.ajax({
+      url: `index.php?controller=AdminCurrencies&token=${token}`,
+      cache: false,
+      data: `ajax=1&action=cronjobLiveExchangeRate&controller=AdminCurrencies&enable=${enable}`,
+    });
+  });
+
+  // Order details: show modal to update shipping details
+  $(document).on('click', '.edit_shipping_link', function (e) {
+    e.preventDefault();
+
+    $('#id_order_carrier').val($(this).data('id-order-carrier'));
+    $('#shipping_tracking_number').val($(this).data('tracking-number'));
+    $(`#shipping_carrier option[value=${$(this).data('id-carrier')}]`).prop('selected', true);
+
+    $('#modal-shipping').modal();
+  });
+
+  // Function to debounce
+  function debounce(func, wait) {
+    let timeout;
+
+    return function (...args) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+  }
+
+  // Function to update page head CSS properties
+  const prefixName = 'cdk';
+
+  function updatePadding() {
+    const offset = 16;
+    const targetElement = document.querySelector('#content.bootstrap');
+    const referenceElement = document.querySelector('#content.bootstrap .page-head');
+
+    if (!targetElement || !referenceElement) return;
+
+    const referenceHeight = referenceElement.offsetHeight + offset;
+
+    const pageHead = `--${prefixName}-page-head-height`;
+    const pageHeadWithTabs = `--${prefixName}-page-head-with-tabs-height`;
+    document.documentElement.style.setProperty(pageHead, `${referenceHeight}px`);
+    document.documentElement.style.setProperty(pageHeadWithTabs, `${referenceHeight}px`);
+  }
+
+  // Initial padding update
+  updatePadding();
+
+  // Create a debounced version of the updatePadding function
+  const debouncedUpdatePadding = debounce(updatePadding, 100);
+
+  // Update padding when the window is resized
+  window.addEventListener('resize', debouncedUpdatePadding);
+});
